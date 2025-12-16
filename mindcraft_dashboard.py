@@ -1,43 +1,53 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import os
 
-# ===============================
-# Load Player Data
+st.set_page_config(page_title="MindCraft Dashboard", layout="wide")
+
+st.title("🧠 MindCraft – Smart Math Game Dashboard")
+st.write("Live performance analytics")
+
 DATA_FILE = "mindcraft_player_data.txt"
 
-try:
-    with open(DATA_FILE, "r") as f:
-        lines = f.readlines()
-except FileNotFoundError:
-    lines = []
+# ---------- SAFETY CHECK ----------
+if not os.path.exists(DATA_FILE):
+    st.error("❌ Data file not found: mindcraft_player_data.txt")
+    st.stop()
 
-# ===============================
-# Parse lines
+# ---------- READ DATA ----------
 data = []
-for line in lines:
-    parts = line.strip().split("|")
-    if len(parts) >= 5:
-        dt = parts[0].strip()
-        player = parts[1].replace("Player:", "").strip()
-        subject = parts[2].replace("Subject:", "").strip()
-        score = parts[3].replace("Score:", "").strip()
-        
-        # Avg Time parsing
-        try:
-            avg_time_part = [p for p in parts if "Avg Time" in p][0]
-            avg_time = float(avg_time_part.replace("Avg Time:", "").replace("sec","").strip())
-        except:
-            avg_time = 0.0
-        
-        # Level parsing
-        try:
-            level_part = [p for p in parts if "Level" in p][0]
-            level = int(level_part.replace("Level:","").strip())
-        except:
-            level = 1
-        
-        data.append([dt, player, subject, score, avg_time, level])
+with open(DATA_FILE, "r") as f:
+    for line in f:
+        parts = line.strip().split("|")
+        if len(parts) != 6:
+            continue
 
-# Create DataFrame
-df = pd.DataFrame(data, columns=["Date","Player","Subject","Score","AvgTime","Level"])
+        date, player, subject, score, avg_time, level = parts
+
+        score = int(score)
+        avg_time = float(avg_time)
+        level = int(level.replace("Level:", "").strip())
+
+        data.append([date, player, subject, score, avg_time, level])
+
+df = pd.DataFrame(
+    data,
+    columns=["Date", "Player", "Subject", "Score", "Avg Time", "Level"]
+)
+
+# ---------- SHOW DATA ----------
+st.subheader("📋 Player Records")
+st.dataframe(df)
+
+# ---------- LEADERBOARD ----------
+st.subheader("🏆 Leaderboard")
+leaderboard = df.sort_values(["Score", "Level"], ascending=False)
+st.table(leaderboard[["Player", "Score", "Level"]].head(5))
+
+# ---------- INSIGHT ----------
+st.subheader("🤖 AI Insight")
+best = leaderboard.iloc[0]
+st.success(
+    f"Top player is **{best['Player']}** "
+    f"with score {best['Score']} at level {best['Level']} 🚀"
+)
